@@ -21,10 +21,13 @@ OTHER_ARCH := $(shell (echo "$(DEB_HOST_MULTIARCH)" | grep i386 >/dev/null) && \
 PATH := $(PATH):/usr/sbin
 
 # Package names
-PKG_driver           := nvidia-current
-PKG_driver_dev       := $(PKG_driver)-dev
+old_PKG_driver           := nvidia-current
+old_PKG_driver_dev       := $(old_PKG_driver)-dev
 PKG_version          := $(shell dpkg-parsechangelog | awk -F' ' '/^Version:/ {print $$2}' | awk -F- '{print $$1}')
 PKG_version          := $(shell echo $(PKG_version) | sed s/.*\.really\.//g)
+PKG_mainversion      := $(shell echo $(PKG_version) | awk -F. '{print $$1}')
+PKG_driver           := nvidia-$(PKG_mainversion)
+PKG_driver_dev       := $(PKG_driver)-dev
 PKG_source           := $(shell dpkg-parsechangelog | sed -n 's/^Source: //p')
 PKG_module           := $(shell echo "$(PKG_driver)" | sed s/\-/_/g)
 
@@ -133,6 +136,11 @@ DEB_DH_SHLIBDEPS_ARGS_$(PKG_driver)="-Xtls -Xconf" -X$(PKG_libdir32)#
 DEB_SHLIBDEPS_INCLUDE_$(PKG_driver) := $(CURDIR)/debian/$(PKG_driver)$(PKG_libdir)/:$(libdir)/
 DEB_SHLIBDEPS_INCLUDE_$(PKG_driver_dev) := $(CURDIR)/debian/$(PKG_driver_dev)$(PKG_libdir)/:$(libdir)/
 
+.PHONY: download-binary
+download-binary:
+	if [ ! -f $(filename_x86) ]; then wget $(url_x86); fi
+	if [ ! -f $(filename_x86_64) ]; then wget $(url_x86_64); fi
+
 .PHONY: gen-abi-substvars
 gen-abi-substvars:
 	# Generate the xserver ABI dependencies
@@ -142,25 +150,25 @@ gen-abi-substvars:
 regen-from-templates:
 	#Create important strings
 	for i in dkms.conf \
-			 $(PKG_driver).README.Debian      \
+			 $(old_PKG_driver).README.Debian      \
 			 control                           \
 			 copyright                         \
 			 ubuntu-nvidia-settings.desktop    \
 			 nvidia-autostart.desktop          \
-			 $(PKG_driver).grub-gfxpayload     \
-			 $(PKG_driver).install             \
-			 $(PKG_driver_dev).install         \
-			 $(PKG_driver).links               \
-			 $(PKG_driver).links32             \
-			 $(PKG_driver_dev).links           \
-			 $(PKG_driver).override            \
-			 $(PKG_driver).dirs                \
-			 $(PKG_driver).docs                \
-			 $(PKG_driver).postrm              \
-			 $(PKG_driver).postinst            \
-			 $(PKG_driver).preinst             \
-			 $(PKG_driver).prerm               \
-			 $(PKG_driver_dev).preinst; do     \
+			 $(old_PKG_driver).grub-gfxpayload     \
+			 $(old_PKG_driver).install             \
+			 $(old_PKG_driver_dev).install         \
+			 $(old_PKG_driver).links               \
+			 $(old_PKG_driver).links32             \
+			 $(old_PKG_driver_dev).links           \
+			 $(old_PKG_driver).override            \
+			 $(old_PKG_driver).dirs                \
+			 $(old_PKG_driver).docs                \
+			 $(old_PKG_driver).postrm              \
+			 $(old_PKG_driver).postinst            \
+			 $(old_PKG_driver).preinst             \
+			 $(old_PKG_driver).prerm               \
+			 $(old_PKG_driver_dev).preinst; do     \
 		sed -e "s|#LIBDIR#|$(libdir)|g"         \
 			-e "s|#LIBDIR32#|$(libdir32)|g"     \
 			-e "s|#BINDIR#|$(bindir)|g"         \
@@ -203,6 +211,7 @@ regen-from-templates:
 			-e "s|#DEB_HOST_MULTIARCH#|$(DEB_HOST_MULTIARCH)|g" \
 			-e "s|#OTHER_ARCH#|$(OTHER_ARCH)|g" \
 			debian/$$i.in > debian/$$i;      \
+			rename -f 's/$(old_PKG_driver)/$(PKG_driver)/' debian/$$i;                \
 	done
 ifeq ($(DEB_BUILD_ARCH),amd64)
 	cat $(CURDIR)/debian/$(PKG_driver).links $(CURDIR)/debian/$(PKG_driver).links32 > \
@@ -264,19 +273,6 @@ ifeq ($(DEB_BUILD_ARCH),amd64)
 
 	dh_install -p$(PKG_driver) "$(dirname_x86)/lib*.so*"  "$(PKG_libdir32)"
 	dh_install -p$(PKG_driver) "$(dirname_x86)/lib*.la*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libGL*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libGL.la"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libnvidia*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libcuda*.so*"  "$(PKG_libdir32)"
-
-	#dh_install -p$(PKG_driver)  "$(dirname_x86)/libvdpau*"  "$(PKG_vdpaudir32)"
-	#dh_install -p$(PKG_driver)  "$(dirname_x86)/tls/lib*"  "$(PKG_tlsdir32)"
-
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libOpenCL*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libnvidia-compiler*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libnvcuvid*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libnvidia-ml*.so*"  "$(PKG_libdir32)"
-	#dh_install -p$(PKG_driver) "$(dirname_x86)/libXvMCNVIDIA*.so.*" "$(PKG_libdir32)"
 endif
 
 	# Generate modaliases for Jockey and nvidia-common
@@ -315,7 +311,7 @@ endif
                $(CURDIR)/debian/$(PKG_driver)$(sysconfdir)/modprobe.d/$(PKG_driver)_hybrid.conf
 
 	# XvMCConfig
-	dh_installdirs -p$(PKG_driver) "$(PKG_configdir)"
+	#dh_installdirs -p$(PKG_driver) "$(PKG_configdir)"
 	#echo "libXvMCNVIDIA_dynamic.so.1" > $(CURDIR)/debian/$(PKG_driver)/$(PKG_configdir)/XvMCConfig
 
 	dh_install -p$(PKG_driver) $(dirname)/nvidia-xconfig.1.gz "$(mandir)";
@@ -330,7 +326,7 @@ endif
 	rm -rf debian/temp
 
 
-clean:: regen-from-templates
+clean:: regen-from-templates download-binary
 #	for file in $(CURDIR)/debian/*.in \
 #	; do \
 #		if [ `basename $$file` != "control.in" ]; then \
