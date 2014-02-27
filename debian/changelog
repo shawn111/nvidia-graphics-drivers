@@ -1,7 +1,6 @@
-nvidia-graphics-drivers (331.49-0somerville2) precise; urgency=low
+nvidia-graphics-drivers (331.49-0test) precise; urgency=low
 
-  * support GTX745 (10de:1382) (LP: #1281912) - additional_card_ids
-  * rename nvidia-current to nvidia-331
+  * add linux-headers-generic-lts-quantal in Depends
 
  -- Shawn Wang <shawn.wang@canonical.com>  Wed, 26 Feb 2014 11:00:56 +0800
 
